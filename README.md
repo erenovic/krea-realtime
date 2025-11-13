@@ -235,7 +235,7 @@ If you use this work, please cite:
 ```bibtex
 @software{krea_realtime_14b,
   title={Krea Realtime 14B: Real-time Video Generation},
-  author={Krea AI},
+  author={Erwann Millon},
   year={2025},
   url={https://github.com/krea-ai/realtime-video}
 }
