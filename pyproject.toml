@@ -125,7 +125,7 @@ dependencies = [
     "ninja==1.13.0",
     "notebook==7.4.5",
     "notebook-shim==0.2.4",
-    "numpy==2.1.2",
+    "numpy==1.26.4",
     "omegaconf==2.3.0",
     "open-clip-torch==3.0.0",
     "openai==1.100.1",
