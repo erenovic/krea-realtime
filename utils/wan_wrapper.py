@@ -103,7 +103,7 @@ class WanVAEWrapper(torch.nn.Module):
         self.std = torch.tensor(std, dtype=torch.float32)
 
         # init model
-        vae_path = os.path.join(MODEL_FOLDER, "Wan2.1-T2V-1.3B", "Wan2.1_VAE.pth")
+        vae_path = os.path.join(MODEL_FOLDER, "Wan2.1_VAE.pth")
         self.model = (
             _video_vae(
                 pretrained_path=vae_path,

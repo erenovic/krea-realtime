@@ -7,8 +7,8 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 from torch.nn.attention.flex_attention import BlockMask, create_block_mask, flex_attention
 
-from wan.modules.attention import attention
-from wan.modules.model import (
+from src.external.Krea.wan.modules.attention import attention
+from src.external.Krea.wan.modules.model import (
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
     WanLayerNorm,
@@ -19,18 +19,6 @@ from wan.modules.model import (
 )
 
 flex_attention = torch.compile(flex_attention, dynamic=False, mode="max-autotune-no-cudagraphs")
-
-
-def rope_params_riflex(max_seq_len, dim, theta=10000, k=0, L_test=None):
-    assert dim % 2 == 0
-    omega = 1.0 / torch.pow(theta, torch.arange(0, dim, 2).to(torch.float64).div(dim))
-    if k is not None:
-        print("Doing riflex w/ ltest", L_test)
-        omega[k - 1] = 0.9 * 2 * torch.pi / L_test
-    freqs = torch.outer(torch.arange(max_seq_len), omega)
-
-    freqs = torch.polar(torch.ones_like(freqs), freqs)
-    return freqs
 
 
 @functools.lru_cache(maxsize=32)
@@ -179,7 +167,16 @@ def causal_rope_apply(x, grid_sizes, freqs, start_frame=0):
 
 
 class CausalWanSelfAttention(nn.Module):
-    def __init__(self, dim, num_heads, frame_seq_len: int, local_attn_size=-1, sink_size=0, qk_norm=True, eps=1e-6):
+    def __init__(
+        self,
+        dim,
+        num_heads,
+        frame_seq_len: int,
+        local_attn_size=-1,
+        sink_size=0,
+        qk_norm=True,
+        eps=1e-6,
+    ):
         assert dim % num_heads == 0
         super().__init__()
         self.dim = dim
@@ -835,7 +832,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
 
         # attention for noisy frames
         for block_index, (start, end) in enumerate(
-            zip(noisy_image_start_list, noisy_image_end_list)
+            zip(noisy_image_start_list, noisy_image_end_list, strict=True)
         ):
             # attend to noisy tokens within the same block
             noise_noise_starts[start:end] = start
@@ -1006,7 +1003,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
             self.freqs = self.freqs.to(device)
 
         if y is not None:
-            x = [torch.cat([u, v], dim=0) for u, v in zip(x, y)]
+            x = [torch.cat([u, v], dim=0) for u, v in zip(x, y, strict=True)]
 
         # embeddings
         x = [self.patch_embedding(u.unsqueeze(0)) for u in x]
@@ -1181,7 +1178,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                     )
 
         if y is not None:
-            x = [torch.cat([u, v], dim=0) for u, v in zip(x, y)]
+            x = [torch.cat([u, v], dim=0) for u, v in zip(x, y, strict=True)]
 
         # embeddings
         x = [self.patch_embedding(u.unsqueeze(0)) for u in x]
@@ -1303,10 +1300,10 @@ class CausalWanModel(ModelMixin, ConfigMixin):
 
         c = self.out_dim
         out = []
-        for u, v in zip(x, grid_sizes.tolist()):
+        for u, v in zip(x, grid_sizes.tolist(), strict=True):
             u = u[: math.prod(v)].view(*v, *self.patch_size, c)
             u = torch.einsum("fhwpqrc->cfphqwr", u)
-            u = u.reshape(c, *[i * j for i, j in zip(v, self.patch_size)])
+            u = u.reshape(c, *[i * j for i, j in zip(v, self.patch_size, strict=True)])
             out.append(u)
         return out
 
