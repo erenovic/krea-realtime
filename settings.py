@@ -12,4 +12,4 @@ JOB_ID = os.getenv("SLURM_JOB_ID")
 USER_ID = os.getenv("USER")
 TMP_DIR = f"/scratch/tmp.{JOB_ID}.{USER_ID}"
 MODEL_FOLDER = os.getenv("MODEL_FOLDER", f"{TMP_DIR}/huggingface/hub/{REL_MODEL_FOLDER}")
-COMPILE_SHAPES = [(832, 480), (480, 832)]
+COMPILE_SHAPES = [(832, 480), (480, 832), (1024, 576), (576, 1024)]

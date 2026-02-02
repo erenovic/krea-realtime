@@ -23,7 +23,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
 import numpy as np
-import safetensors
+
+# import safetensors
 import torch
 import torch._dynamo as dynamo
 import torchvision.transforms.functional as TF
@@ -178,8 +179,13 @@ def load_transformer(config, meta_transformer=False):
         model_name = "Wan2.1-T2V-14B"
 
     timestep_shift = getattr(config, "timestep_shift", 5.0)
+
+    frame_seq_len = (config.height // 16) * (config.width // 16)
     transformer = WanDiffusionWrapper(
-        model_name=model_name, timestep_shift=timestep_shift, is_causal=True
+        model_name=model_name,
+        timestep_shift=timestep_shift,
+        is_causal=True,
+        frame_seq_len=frame_seq_len,
     )
     transformer.load_state_dict(state_dict)
 
@@ -256,8 +262,14 @@ def load_pipeline(config, device, transformer, text_encoder, vae_decoder):
     t_import = time.time()
     log.debug(f"Pipeline import took: {t_import - t_start:.2f}s")
 
+    frame_seq_length = (config.height // 16) * (config.width // 16)
     pipeline = CausalInferencePipeline(
-        config, device=device, generator=transformer, text_encoder=text_encoder, vae=vae_decoder
+        config,
+        device=device,
+        frame_seq_length=frame_seq_length,
+        generator=transformer,
+        text_encoder=text_encoder,
+        vae=vae_decoder,
     )
 
     t_finish = time.time()
@@ -661,8 +673,8 @@ class GenerationSession:
                 max_frames=81,
                 video_path_or_url=None,
                 frames=self.frame_context_cache[0][0].half(),
-                height=480,
-                width=832,
+                height=self.height,
+                width=self.width,
                 stream=False,
             )[0].transpose(0, 1)[None]
             clean_context_frames = torch.cat((first_frame_latent, clean_context_frames), dim=1).to(
@@ -684,8 +696,8 @@ class GenerationSession:
             max_frames=81,
             video_path_or_url=None,
             frames=tensors,
-            height=480,
-            width=832,
+            height=self.height,
+            width=self.width,
             stream=False,
         )[0].transpose(0, 1)[None]
         self.resume_latents = latents
@@ -792,7 +804,7 @@ class GenerationSession:
         for index, current_timestep in enumerate(self.denoising_step_list):
             if self.disposed.is_set():
                 return
-            t_step_start = time.time()
+            # t_step_start = time.time()
             # Normal initialize timestamp stuff
             timestep = (
                 torch.ones(
@@ -815,7 +827,7 @@ class GenerationSession:
                     crossattn_cache=models.pipeline.crossattn_cache,
                     current_start=model_input_start_frame * models.pipeline.frame_seq_length,
                 )
-                start_time = time.time()
+                # start_time = time.time()
                 next_timestep = self.denoising_step_list[index + 1]
                 noisy_input = models.pipeline.scheduler.add_noise(
                     denoised_pred.flatten(0, 1),
@@ -834,7 +846,7 @@ class GenerationSession:
                 ).unflatten(0, denoised_pred.shape[:2])
                 # logging.debug("(renoise) time %f", time.time() - start_time)
             else:
-                start_time = time.time()
+                # start_time = time.time()
                 # otherwise just denoise
                 _, denoised_pred = models.transformer(
                     noisy_image_or_video=noisy_input,
@@ -851,13 +863,14 @@ class GenerationSession:
             + models.pipeline.num_frame_per_block,
         ] = denoised_pred
         self.last_pred = denoised_pred
-        decode_start = time.time()
+        # decode_start = time.time()
 
-        if (self.params.width, self.params.height) != (832, 480):
-            print("Falling back to eager for VAE decode")
-            ctx = torch.compiler.set_stance("force_eager")
-        else:
-            ctx = torch.compiler.set_stance("default")
+        # if (self.params.width, self.params.height) != (832, 480):
+        #     print("Falling back to eager for VAE decode")
+        #     ctx = torch.compiler.set_stance("force_eager")
+        # else:
+        #     ctx = torch.compiler.set_stance("default")
+        ctx = torch.compiler.set_stance("default")
 
         with ctx:
             pixels, self.decode_vae_cache = models.vae_decoder(
@@ -1260,7 +1273,7 @@ async def ws_session(websocket: WebSocket, id: str, config: OmegaConf, models: M
             f"Client disconnected from api session {id}, generation session {session.session_id if session else None}"
         )
     finally:
-        logging.info(f"Terminating session")
+        logging.info("Terminating session")
         if session:
             session.dispose()
         if frame_sender_task:

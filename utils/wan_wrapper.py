@@ -159,12 +159,13 @@ class WanDiffusionWrapper(torch.nn.Module):
     def __init__(
         self,
         # model_name="Wan2.1-T2V-14B",
-        model_name="Wan2.1-T2V-1.3B",
-        timestep_shift=8.0,
-        is_causal=False,
-        local_attn_size=-1,
-        sink_size=0,
-        meta_init=False,
+        model_name: str = "Wan2.1-T2V-1.3B",
+        timestep_shift: float = 8.0,
+        is_causal: bool = False,
+        local_attn_size: int = -1,
+        sink_size: int = 0,
+        meta_init: bool = False,
+        frame_seq_len: int = 1560,
     ):
         super().__init__()
 
@@ -174,7 +175,10 @@ class WanDiffusionWrapper(torch.nn.Module):
         with torch.device("meta") if meta_init else nullcontext():
             if is_causal:
                 self.model = CausalWanModel.from_pretrained(
-                    model_path, local_attn_size=local_attn_size, sink_size=sink_size
+                    model_path,
+                    local_attn_size=local_attn_size,
+                    sink_size=sink_size,
+                    frame_seq_len=frame_seq_len,
                 )
             else:
                 self.model = WanModel.from_pretrained(model_path)
@@ -328,10 +332,10 @@ class WanDiffusionWrapper(torch.nn.Module):
                     flow_pred = flow_pred.permute(0, 2, 1, 3, 4)
                 else:
                     flow_pred = self.model(
-                        noisy_image_or_video.permute(0, 2, 1, 3, 4),
-                        t=input_timestep,
-                        context=prompt_embeds,
-                        seq_len=self.seq_len,
+                        noisy_image_or_video.permute(0, 2, 1, 3, 4),  # [B, T, C, H, W]
+                        t=input_timestep,  # [B, T]
+                        context=prompt_embeds,  # [B, F, L]
+                        seq_len=self.seq_len,  # int
                     ).permute(0, 2, 1, 3, 4)
 
         pred_x0 = self._convert_flow_pred_to_x0(
