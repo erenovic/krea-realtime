@@ -16,11 +16,12 @@ import time
 import traceback
 import uuid
 from collections import deque
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -38,20 +39,21 @@ from omegaconf import OmegaConf
 from PIL import Image
 from pydantic import BaseModel, ValidationError
 from safetensors.torch import load_file
-from settings import MODEL_FOLDER
 from tqdm import tqdm
-from utils.misc import AtomicCounter
-from utils.scheduler import FlowMatchScheduler
-from v2v import encode_video_latent, get_denoising_schedule
-from wan.modules.vae import WanVAE
+
+from src.external.Krea.settings import MODEL_FOLDER
+from src.external.Krea.utils.misc import AtomicCounter
+from src.external.Krea.utils.scheduler import FlowMatchScheduler
+from src.external.Krea.v2v import encode_video_latent, get_denoising_schedule
+from src.external.Krea.wan.modules.vae import WanVAE
 
 torch.set_grad_enabled(False)
 dynamo.config.recompile_limit = 32
 
 if TYPE_CHECKING:
-    from demo_utils.vae_block3 import VAEDecoderWrapper, VAEEncoderWrapper
-    from pipeline import CausalInferencePipeline
-    from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder
+    from src.external.Krea.demo_utils.vae_block3 import VAEDecoderWrapper, VAEEncoderWrapper
+    from src.external.Krea.pipeline import CausalInferencePipeline
+    from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder
 
 
 # Helper function for resampling frames
@@ -818,7 +820,7 @@ class GenerationSession:
             self.conditional_dict["prompt_embeds"] = self.current_prompt_embeds
 
             if index < len(self.denoising_step_list) - 1:
-                start_time = time.time()
+                # start_time = time.time()
                 _, denoised_pred = models.transformer(
                     noisy_image_or_video=noisy_input,
                     conditional_dict=self.conditional_dict,
