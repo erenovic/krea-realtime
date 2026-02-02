@@ -1,8 +1,7 @@
-from typing import Tuple
 import torch
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 from model.base import BaseModel
-from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class CausalDiffusion(BaseModel):
@@ -47,8 +46,8 @@ class CausalDiffusion(BaseModel):
         conditional_dict: dict,
         unconditional_dict: dict,
         clean_latent: torch.Tensor,
-        initial_latent: torch.Tensor = None
-    ) -> Tuple[torch.Tensor, dict]:
+        initial_latent: torch.Tensor = None,
+    ) -> tuple[torch.Tensor, dict]:
         """
         Generate image/videos from noise and compute the DMD loss.
         The noisy input to the generator is backward simulated.
@@ -73,13 +72,11 @@ class CausalDiffusion(BaseModel):
             image_or_video_shape[0],
             image_or_video_shape[1],
             self.num_frame_per_block,
-            uniform_timestep=False
+            uniform_timestep=False,
         )
         timestep = self.scheduler.timesteps[index].to(dtype=self.dtype, device=self.device)
         noisy_latents = self.scheduler.add_noise(
-            clean_latent.flatten(0, 1),
-            noise.flatten(0, 1),
-            timestep.flatten(0, 1)
+            clean_latent.flatten(0, 1), noise.flatten(0, 1), timestep.flatten(0, 1)
         ).unflatten(0, (batch_size, num_frame))
         training_target = self.scheduler.training_target(clean_latent, noise, timestep)
 
@@ -91,13 +88,13 @@ class CausalDiffusion(BaseModel):
                 image_or_video_shape[0],
                 image_or_video_shape[1],
                 self.num_frame_per_block,
-                uniform_timestep=False
+                uniform_timestep=False,
             )
-            timestep_clean_aug = self.scheduler.timesteps[index_clean_aug].to(dtype=self.dtype, device=self.device)
+            timestep_clean_aug = self.scheduler.timesteps[index_clean_aug].to(
+                dtype=self.dtype, device=self.device
+            )
             clean_latent_aug = self.scheduler.add_noise(
-                clean_latent.flatten(0, 1),
-                noise.flatten(0, 1),
-                timestep_clean_aug.flatten(0, 1)
+                clean_latent.flatten(0, 1), noise.flatten(0, 1), timestep_clean_aug.flatten(0, 1)
             ).unflatten(0, (batch_size, num_frame))
         else:
             clean_latent_aug = clean_latent
@@ -109,17 +106,14 @@ class CausalDiffusion(BaseModel):
             conditional_dict=conditional_dict,
             timestep=timestep,
             clean_x=clean_latent_aug if self.teacher_forcing else None,
-            aug_t=timestep_clean_aug if self.teacher_forcing else None
+            aug_t=timestep_clean_aug if self.teacher_forcing else None,
         )
         # loss = torch.nn.functional.mse_loss(flow_pred.float(), training_target.float())
         loss = torch.nn.functional.mse_loss(
-            flow_pred.float(), training_target.float(), reduction='none'
+            flow_pred.float(), training_target.float(), reduction="none"
         ).mean(dim=(2, 3, 4))
         loss = loss * self.scheduler.training_weight(timestep).unflatten(0, (batch_size, num_frame))
         loss = loss.mean()
 
-        log_dict = {
-            "x0": clean_latent.detach(),
-            "x0_pred": x0_pred.detach()
-        }
+        log_dict = {"x0": clean_latent.detach(), "x0_pred": x0_pred.detach()}
         return loss, log_dict
