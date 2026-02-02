@@ -3,14 +3,15 @@ import types
 from contextlib import nullcontext
 
 import torch
-from settings import MODEL_FOLDER
 from torch import nn
-from utils.scheduler import FlowMatchScheduler, SchedulerInterface
-from wan.modules.causal_model import CausalWanModel
-from wan.modules.model import GanAttentionBlock, RegisterTokens, WanModel
-from wan.modules.t5 import umt5_xxl
-from wan.modules.tokenizers import HuggingfaceTokenizer
-from wan.modules.vae import _video_vae
+
+from src.external.Krea.settings import MODEL_FOLDER
+from src.external.Krea.utils.scheduler import FlowMatchScheduler, SchedulerInterface
+from src.external.Krea.wan.modules.causal_model import CausalWanModel
+from src.external.Krea.wan.modules.model import GanAttentionBlock, RegisterTokens, WanModel
+from src.external.Krea.wan.modules.t5 import umt5_xxl
+from src.external.Krea.wan.modules.tokenizers import HuggingfaceTokenizer
+from src.external.Krea.wan.modules.vae import _video_vae
 
 
 class WanTextEncoder(torch.nn.Module):
@@ -53,7 +54,7 @@ class WanTextEncoder(torch.nn.Module):
         seq_lens = mask.gt(0).sum(dim=1).long()
         context = self.text_encoder(ids, mask)
 
-        for u, v in zip(context, seq_lens):
+        for u, v in zip(context, seq_lens, strict=True):
             u[v:] = 0.0  # set padding to 0.0
         result = {"prompt_embeds": context}
         return result

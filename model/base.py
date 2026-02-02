@@ -1,10 +1,11 @@
 import torch
 import torch.distributed as dist
 from einops import rearrange
-from pipeline import SelfForcingTrainingPipeline
 from torch import nn
-from utils.loss import get_denoising_loss
-from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+
+from src.external.Krea.pipeline import SelfForcingTrainingPipeline
+from src.external.Krea.utils.loss import get_denoising_loss
+from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class BaseModel(nn.Module):

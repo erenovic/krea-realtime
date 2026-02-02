@@ -1,7 +1,8 @@
 import torch
-from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
-from model.base import BaseModel
+from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+
+from .base import BaseModel
 
 
 class CausalDiffusion(BaseModel):

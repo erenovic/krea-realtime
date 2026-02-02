@@ -1,12 +1,13 @@
 import torch
 from tqdm import tqdm
-from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
-from wan.utils.fm_solvers import (
+
+from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from src.external.Krea.wan.utils.fm_solvers import (
     FlowDPMSolverMultistepScheduler,
     get_sampling_sigmas,
     retrieve_timesteps,
 )
-from wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from src.external.Krea.wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 
 
 class CausalDiffusionInferencePipeline(torch.nn.Module):
@@ -156,7 +157,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
                 assert num_input_frames % self.num_frame_per_block == 0
                 num_input_blocks = num_input_frames // self.num_frame_per_block
 
-            for block_index in range(num_input_blocks):
+            for _ in range(num_input_blocks):
                 current_ref_latents = initial_latent[
                     :, cache_start_frame : cache_start_frame + self.num_frame_per_block
                 ]
