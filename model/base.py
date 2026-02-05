@@ -1,11 +1,10 @@
 import torch
 import torch.distributed as dist
 from einops import rearrange
+from pipeline import SelfForcingTrainingPipeline
 from torch import nn
-
-from src.external.Krea.pipeline import SelfForcingTrainingPipeline
-from src.external.Krea.utils.loss import get_denoising_loss
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from utils.loss import get_denoising_loss
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class BaseModel(nn.Module):
@@ -144,7 +143,9 @@ class SelfForcingModel(BaseModel):
         num_generated_blocks = torch.randint(
             min_num_blocks, max_num_blocks + 1, (1,), device=self.device
         )
-        dist.broadcast(num_generated_blocks, src=0)
+        # In single-process runs the default process group is not initialized, so guard the broadcast.
+        if dist.is_initialized():
+            dist.broadcast(num_generated_blocks, src=0)
         num_generated_blocks = num_generated_blocks.item()
         num_generated_frames = num_generated_blocks * self.num_frame_per_block
         if self.args.independent_first_frame and initial_latent is None:

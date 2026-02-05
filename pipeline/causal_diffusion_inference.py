@@ -1,13 +1,12 @@
 import torch
 from tqdm import tqdm
-
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
-from src.external.Krea.wan.utils.fm_solvers import (
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from wan.utils.fm_solvers import (
     FlowDPMSolverMultistepScheduler,
     get_sampling_sigmas,
     retrieve_timesteps,
 )
-from src.external.Krea.wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 
 
 class CausalDiffusionInferencePipeline(torch.nn.Module):

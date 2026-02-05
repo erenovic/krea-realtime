@@ -7,8 +7,8 @@ from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 from torch.nn.attention.flex_attention import BlockMask, create_block_mask, flex_attention
 
-from src.external.Krea.wan.modules.attention import attention
-from src.external.Krea.wan.modules.model import (
+from wan.modules.attention import attention
+from wan.modules.model import (
     WAN_CROSSATTENTION_CLASSES,
     MLPProj,
     WanLayerNorm,

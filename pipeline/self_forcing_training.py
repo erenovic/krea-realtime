@@ -1,8 +1,7 @@
 import torch
 import torch.distributed as dist
-
-from src.external.Krea.utils.scheduler import SchedulerInterface
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper
+from utils.scheduler import SchedulerInterface
+from utils.wan_wrapper import WanDiffusionWrapper
 
 
 class SelfForcingTrainingPipeline:

@@ -1,6 +1,5 @@
 import torch
-
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class BidirectionalInferencePipeline(torch.nn.Module):

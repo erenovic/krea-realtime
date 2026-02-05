@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
-from src.external.Krea.model.base import BaseModel
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from model.base import BaseModel
 
 
 class ODERegression(BaseModel):

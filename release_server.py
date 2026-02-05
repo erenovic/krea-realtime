@@ -39,21 +39,20 @@ from omegaconf import OmegaConf
 from PIL import Image
 from pydantic import BaseModel, ValidationError
 from safetensors.torch import load_file
+from settings import MODEL_FOLDER
 from tqdm import tqdm
-
-from src.external.Krea.settings import MODEL_FOLDER
-from src.external.Krea.utils.misc import AtomicCounter
-from src.external.Krea.utils.scheduler import FlowMatchScheduler
-from src.external.Krea.v2v import encode_video_latent, get_denoising_schedule
-from src.external.Krea.wan.modules.vae import WanVAE
+from utils.misc import AtomicCounter
+from utils.scheduler import FlowMatchScheduler
+from v2v import encode_video_latent, get_denoising_schedule
+from wan.modules.vae import WanVAE
 
 torch.set_grad_enabled(False)
 dynamo.config.recompile_limit = 32
 
 if TYPE_CHECKING:
-    from src.external.Krea.demo_utils.vae_block3 import VAEDecoderWrapper, VAEEncoderWrapper
-    from src.external.Krea.pipeline import CausalInferencePipeline
-    from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder
+    from demo_utils.vae_block3 import VAEDecoderWrapper, VAEEncoderWrapper
+    from pipeline import CausalInferencePipeline
+    from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder
 
 
 # Helper function for resampling frames
@@ -423,7 +422,7 @@ class GenerationSession:
         # We'll store the current prompt embeds at each block
         self.current_prompt_embeds = None
 
-        # Initialze with passed vaplue
+        # Initialze with passed value
         self.context_noise = params.context_noise
         self.kv_cache_num_frames = params.kv_cache_num_frames
         self.g_num_blocks = self.num_blocks = params.num_blocks

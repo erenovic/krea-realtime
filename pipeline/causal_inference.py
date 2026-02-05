@@ -1,12 +1,11 @@
 import torch
-
-from src.external.Krea.demo_utils.memory import (
+from demo_utils.memory import (
     # DynamicSwapInstaller,
     get_cuda_free_memory_gb,
     gpu,
     move_model_to_device_with_memory_preservation,
 )
-from src.external.Krea.utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
+from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class CausalInferencePipeline(torch.nn.Module):
