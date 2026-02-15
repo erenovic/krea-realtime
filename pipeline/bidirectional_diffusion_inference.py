@@ -30,9 +30,7 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
 
         self.args = args
 
-    def inference(
-        self, noise: torch.Tensor, text_prompts: list[str], return_latents=False
-    ) -> torch.Tensor:
+    def inference(self, noise: torch.Tensor, text_prompts: list[str], return_latents=False) -> torch.Tensor:
         """
         Perform inference on the given noise and text prompts.
         Inputs:
@@ -45,25 +43,19 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
         """
 
         conditional_dict = self.text_encoder(text_prompts=text_prompts)
-        unconditional_dict = self.text_encoder(
-            text_prompts=[self.args.negative_prompt] * len(text_prompts)
-        )
+        unconditional_dict = self.text_encoder(text_prompts=[self.args.negative_prompt] * len(text_prompts))
 
         latents = noise
 
         sample_scheduler = self._initialize_sample_scheduler(noise)
         for _, t in enumerate(tqdm(sample_scheduler.timesteps)):
             latent_model_input = latents
-            timestep = t * torch.ones(
-                [latents.shape[0], 21], device=noise.device, dtype=torch.float32
-            )
+            timestep = t * torch.ones([latents.shape[0], 21], device=noise.device, dtype=torch.float32)
 
             flow_pred_cond, _ = self.generator(latent_model_input, conditional_dict, timestep)
             flow_pred_uncond, _ = self.generator(latent_model_input, unconditional_dict, timestep)
 
-            flow_pred = flow_pred_uncond + self.args.guidance_scale * (
-                flow_pred_cond - flow_pred_uncond
-            )
+            flow_pred = flow_pred_uncond + self.args.guidance_scale * (flow_pred_cond - flow_pred_uncond)
 
             temp_x0 = sample_scheduler.step(
                 flow_pred.unsqueeze(0), t, latents.unsqueeze(0), return_dict=False
@@ -86,9 +78,7 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
             sample_scheduler = FlowUniPCMultistepScheduler(
                 num_train_timesteps=self.num_train_timesteps, shift=1, use_dynamic_shifting=False
             )
-            sample_scheduler.set_timesteps(
-                self.sampling_steps, device=noise.device, shift=self.shift
-            )
+            sample_scheduler.set_timesteps(self.sampling_steps, device=noise.device, shift=self.shift)
             self.timesteps = sample_scheduler.timesteps
         elif self.sample_solver == "dpm++":
             sample_scheduler = FlowDPMSolverMultistepScheduler(

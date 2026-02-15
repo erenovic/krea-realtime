@@ -342,9 +342,7 @@ def create_grid(outputs_folder: str = "outputs", grid_output_dir: str = "outputs
             str(videos[0][1]),
         ]
         try:
-            dimensions = sp.run(
-                probe_cmd, capture_output=True, text=True, check=True
-            ).stdout.strip()
+            dimensions = sp.run(probe_cmd, capture_output=True, text=True, check=True).stdout.strip()
             video_width, video_height = map(int, dimensions.split("x"))
         except:
             # Fallback to default dimensions if probe fails

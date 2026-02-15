@@ -1,7 +1,6 @@
-
 import torch
 
-ENCODER_ZERO_VAE_CACHE = [None] * 55 # fifty five is a good number. 
+ENCODER_ZERO_VAE_CACHE = [None] * 55  # fifty five is a good number.
 
 DECODER_ZERO_VAE_CACHE = [
     torch.zeros(1, 16, 2, 60, 104),
@@ -35,7 +34,7 @@ DECODER_ZERO_VAE_CACHE = [
     torch.zeros(1, 96, 2, 480, 832),
     torch.zeros(1, 96, 2, 480, 832),
     torch.zeros(1, 96, 2, 480, 832),
-    torch.zeros(1, 96, 2, 480, 832)
+    torch.zeros(1, 96, 2, 480, 832),
 ]
 ZERO_VAE_CACHE = DECODER_ZERO_VAE_CACHE
 

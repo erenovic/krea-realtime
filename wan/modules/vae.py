@@ -55,10 +55,7 @@ class RMS_norm(nn.Module):
         self.bias = nn.Parameter(torch.zeros(shape)) if bias else 0.0
 
     def forward(self, x):
-        return (
-            F.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma
-            + self.bias
-        )
+        return F.normalize(x, dim=(1 if self.channel_first else -1)) * self.scale * self.gamma + self.bias
 
 
 class Upsample(nn.Upsample):
@@ -91,13 +88,9 @@ class Resample(nn.Module):
             self.time_conv = CausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0))
 
         elif mode == "downsample2d":
-            self.resample = nn.Sequential(
-                nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2))
-            )
+            self.resample = nn.Sequential(nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2)))
         elif mode == "downsample3d":
-            self.resample = nn.Sequential(
-                nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2))
-            )
+            self.resample = nn.Sequential(nn.ZeroPad2d((0, 1, 0, 1)), nn.Conv2d(dim, dim, 3, stride=(2, 2)))
             self.time_conv = CausalConv3d(dim, dim, (3, 1, 1), stride=(2, 1, 1), padding=(0, 0, 0))
 
         else:
@@ -109,9 +102,7 @@ class Resample(nn.Module):
             if feat_cache is not None:
                 idx = feat_idx[0]
                 if feat_cache[idx] is None:
-                    feat_cache[idx] = torch.zeros(
-                        b, c, self.cache_t, h, w, device=x.device, dtype=x.dtype
-                    )
+                    feat_cache[idx] = torch.zeros(b, c, self.cache_t, h, w, device=x.device, dtype=x.dtype)
                     feat_idx[0] += 1
                 else:
                     cache_x = x[:, :, -self.cache_t :, :, :].clone()
@@ -236,11 +227,7 @@ class AttentionBlock(nn.Module):
         x = self.norm(x)
         # compute query, key, value
         q, k, v = (
-            self.to_qkv(x)
-            .reshape(b * t, 1, c * 3, -1)
-            .permute(0, 1, 3, 2)
-            .contiguous()
-            .chunk(3, dim=-1)
+            self.to_qkv(x).reshape(b * t, 1, c * 3, -1).permute(0, 1, 3, 2).contiguous().chunk(3, dim=-1)
         )
 
         # apply attention
@@ -531,9 +518,7 @@ class WanVAE_(nn.Module):
                 out = torch.cat([out, out_], 2)
         mu, log_var = self.conv1(out).chunk(2, dim=1)
         if isinstance(scale[0], torch.Tensor):
-            mu = (mu - scale[0].view(1, self.z_dim, 1, 1, 1)) * scale[1].view(
-                1, self.z_dim, 1, 1, 1
-            )
+            mu = (mu - scale[0].view(1, self.z_dim, 1, 1, 1)) * scale[1].view(1, self.z_dim, 1, 1, 1)
         else:
             mu = (mu - scale[0]) * scale[1]
         self.clear_cache()
@@ -628,9 +613,7 @@ def _video_vae(pretrained_path=None, z_dim=None, device="cpu", **kwargs):
 
 
 class WanVAE:
-    def __init__(
-        self, z_dim=16, vae_pth="cache/vae_step_411000.pth", dtype=torch.float, device="cuda"
-    ):
+    def __init__(self, z_dim=16, vae_pth="cache/vae_step_411000.pth", dtype=torch.float, device="cuda"):
         self.dtype = dtype
         self.device = device
 
@@ -690,13 +673,10 @@ class WanVAE:
         videos: A list of videos each with shape [C, T, H, W].
         """
         with amp.autocast(dtype=self.dtype):
-            return [
-                self.model.encode(u.unsqueeze(0), self.scale).float().squeeze(0) for u in videos
-            ]
+            return [self.model.encode(u.unsqueeze(0), self.scale).float().squeeze(0) for u in videos]
 
     def decode(self, zs):
         with amp.autocast(dtype=self.dtype):
             return [
-                self.model.decode(u.unsqueeze(0), self.scale).float().clamp_(-1, 1).squeeze(0)
-                for u in zs
+                self.model.decode(u.unsqueeze(0), self.scale).float().clamp_(-1, 1).squeeze(0) for u in zs
             ]

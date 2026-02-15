@@ -189,9 +189,7 @@ class WanDiffusionWrapper(torch.nn.Module):
         self.uniform_timestep = not is_causal
 
         print("timestep shift, ", timestep_shift)
-        self.scheduler = FlowMatchScheduler(
-            shift=timestep_shift, sigma_min=0.0, extra_one_step=True
-        )
+        self.scheduler = FlowMatchScheduler(shift=timestep_shift, sigma_min=0.0, extra_one_step=True)
         self.scheduler.set_timesteps(1000, training=True)
 
         self.seq_len = 32760  # [1, 21, 16, 60, 104]
@@ -355,12 +353,8 @@ class WanDiffusionWrapper(torch.nn.Module):
         Update the current scheduler with the interface's static method
         """
         scheduler = self.scheduler
-        scheduler.convert_x0_to_noise = types.MethodType(
-            SchedulerInterface.convert_x0_to_noise, scheduler
-        )
-        scheduler.convert_noise_to_x0 = types.MethodType(
-            SchedulerInterface.convert_noise_to_x0, scheduler
-        )
+        scheduler.convert_x0_to_noise = types.MethodType(SchedulerInterface.convert_x0_to_noise, scheduler)
+        scheduler.convert_noise_to_x0 = types.MethodType(SchedulerInterface.convert_noise_to_x0, scheduler)
         scheduler.convert_velocity_to_x0 = types.MethodType(
             SchedulerInterface.convert_velocity_to_x0, scheduler
         )

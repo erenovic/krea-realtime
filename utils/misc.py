@@ -3,6 +3,7 @@ import random
 import torch
 import threading
 
+
 def set_seed(seed: int, deterministic: bool = False):
     """
     Helper function for reproducible behavior to set the seed in `random`, `numpy`, `torch`.
@@ -37,6 +38,7 @@ def merge_dict_list(dict_list):
             # for non-tensor values, we just copy the value from the first item
             merged_dict[k] = v
     return merged_dict
+
 
 class AtomicCounter:
     def __init__(self, initial=0):
