@@ -101,8 +101,7 @@ class CausVid(BaseModel):
         )
 
         pred_real_image = (
-            pred_real_image_cond
-            + (pred_real_image_cond - pred_real_image_uncond) * self.real_guidance_scale
+            pred_real_image_cond + (pred_real_image_cond - pred_real_image_uncond) * self.real_guidance_scale
         )
 
         # Step 3: Compute the DMD gradient (DMD paper eq. 7).

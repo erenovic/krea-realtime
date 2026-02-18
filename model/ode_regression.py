@@ -50,9 +50,7 @@ class ODERegression(BaseModel):
         self.vae.requires_grad_(False)
 
     @torch.no_grad()
-    def _prepare_generator_input(
-        self, ode_latent: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def _prepare_generator_input(self, ode_latent: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Given a tensor containing the whole ODE sampling trajectories,
         randomly choose an intermediate timestep and return the latent as well as the corresponding timestep.
@@ -99,9 +97,7 @@ class ODERegression(BaseModel):
 
         return noisy_input, timestep
 
-    def generator_loss(
-        self, ode_latent: torch.Tensor, conditional_dict: dict
-    ) -> tuple[torch.Tensor, dict]:
+    def generator_loss(self, ode_latent: torch.Tensor, conditional_dict: dict) -> tuple[torch.Tensor, dict]:
         """
         Generate image/videos from noisy latents and compute the ODE regression loss.
         Input:

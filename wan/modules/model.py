@@ -329,12 +329,8 @@ class WanAttentionBlock(nn.Module):
         # layers
         self.norm1 = WanLayerNorm(dim, eps)
         self.self_attn = WanSelfAttention(dim, num_heads, window_size, qk_norm, eps)
-        self.norm3 = (
-            WanLayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else nn.Identity()
-        )
-        self.cross_attn = WAN_CROSSATTENTION_CLASSES[cross_attn_type](
-            dim, num_heads, (-1, -1), qk_norm, eps
-        )
+        self.norm3 = WanLayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else nn.Identity()
+        self.cross_attn = WAN_CROSSATTENTION_CLASSES[cross_attn_type](dim, num_heads, (-1, -1), qk_norm, eps)
         self.norm2 = WanLayerNorm(dim, eps)
         self.ffn = nn.Sequential(
             nn.Linear(dim, ffn_dim), nn.GELU(approximate="tanh"), nn.Linear(ffn_dim, dim)
@@ -407,9 +403,7 @@ class GanAttentionBlock(nn.Module):
         # self.norm1 = WanLayerNorm(dim, eps)
         # self.self_attn = WanSelfAttention(dim, num_heads, window_size, qk_norm,
         #   eps)
-        self.norm3 = (
-            WanLayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else nn.Identity()
-        )
+        self.norm3 = WanLayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else nn.Identity()
 
         self.norm2 = WanLayerNorm(dim, eps)
         self.ffn = nn.Sequential(
@@ -613,9 +607,7 @@ class WanModel(ModelMixin, ConfigMixin):
             nn.Linear(text_dim, dim), nn.GELU(approximate="tanh"), nn.Linear(dim, dim)
         )
 
-        self.time_embedding = nn.Sequential(
-            nn.Linear(freq_dim, dim), nn.SiLU(), nn.Linear(dim, dim)
-        )
+        self.time_embedding = nn.Sequential(nn.Linear(freq_dim, dim), nn.SiLU(), nn.Linear(dim, dim))
         self.time_projection = nn.Sequential(nn.SiLU(), nn.Linear(dim, dim * 6))
 
         # blocks
@@ -724,9 +716,7 @@ class WanModel(ModelMixin, ConfigMixin):
         x = [u.flatten(2).transpose(1, 2) for u in x]
         seq_lens = torch.tensor([u.size(1) for u in x], dtype=torch.long)
         assert seq_lens.max() <= seq_len
-        x = torch.cat(
-            [torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1) for u in x]
-        )
+        x = torch.cat([torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1) for u in x])
 
         # time embeddings
         # with amp.autocast(dtype=torch.float32):
@@ -737,9 +727,7 @@ class WanModel(ModelMixin, ConfigMixin):
         # context
         context_lens = None
         context = self.text_embedding(
-            torch.stack(
-                [torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))]) for u in context]
-            )
+            torch.stack([torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))]) for u in context])
         )
 
         if clip_fea is not None:
@@ -858,9 +846,7 @@ class WanModel(ModelMixin, ConfigMixin):
         x = [u.flatten(2).transpose(1, 2) for u in x]
         seq_lens = torch.tensor([u.size(1) for u in x], dtype=torch.long)
         assert seq_lens.max() <= seq_len
-        x = torch.cat(
-            [torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1) for u in x]
-        )
+        x = torch.cat([torch.cat([u, u.new_zeros(1, seq_len - u.size(1), u.size(2))], dim=1) for u in x])
 
         # time embeddings
         # with amp.autocast(dtype=torch.float32):
@@ -871,9 +857,7 @@ class WanModel(ModelMixin, ConfigMixin):
         # context
         context_lens = None
         context = self.text_embedding(
-            torch.stack(
-                [torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))]) for u in context]
-            )
+            torch.stack([torch.cat([u, u.new_zeros(self.text_len - u.size(0), u.size(1))]) for u in context])
         )
 
         if clip_fea is not None:

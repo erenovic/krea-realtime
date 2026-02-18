@@ -154,9 +154,7 @@ def load_text_encoder():
     text_encoder.requires_grad_(False)
 
     t_finish = time.time()
-    log.debug(
-        f"Text encoder load completed in: {t_finish - t_import:.2f}s, total: {t_finish - t_start:.2f}s"
-    )
+    log.debug(f"Text encoder load completed in: {t_finish - t_import:.2f}s, total: {t_finish - t_start:.2f}s")
 
     return text_encoder
 
@@ -209,9 +207,7 @@ def load_transformer(config, meta_transformer=False):
         quantize_(transformer, Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor()))
 
     t_finish = time.time()
-    log.debug(
-        f"Transformer load completed in: {t_finish - t_import:.2f}s, total: {t_finish - t_start:.2f}s"
-    )
+    log.debug(f"Transformer load completed in: {t_finish - t_import:.2f}s, total: {t_finish - t_start:.2f}s")
 
     return transformer
 
@@ -324,9 +320,7 @@ def load_all(config: OmegaConf, meta_transformer=False):
         # Initialize pipeline
         pbar.set_description("Initializing pipeline")
         t_stage_start = time.time()
-        pipeline = load_pipeline(
-            config, torch.cuda.current_device(), transformer, text_encoder, vae_decoder
-        )
+        pipeline = load_pipeline(config, torch.cuda.current_device(), transformer, text_encoder, vae_decoder)
         log.debug(f"Initializing pipeline took: {time.time() - t_stage_start:.2f}s")
         pbar.update(1)
 
@@ -441,9 +435,7 @@ class GenerationSession:
         num_latent_frames = self.num_blocks * self.num_frame_per_block
 
         latent_shape = [1, num_latent_frames, 16, self.latent_height, self.latent_width]
-        self.all_latents = torch.zeros(
-            latent_shape, device=self.gpu, dtype=torch.bfloat16
-        ).contiguous()
+        self.all_latents = torch.zeros(latent_shape, device=self.gpu, dtype=torch.bfloat16).contiguous()
         self.noise = torch.randn(
             latent_shape, device=self.gpu, dtype=torch.bfloat16, generator=self.rnd
         ).contiguous()
@@ -533,10 +525,7 @@ class GenerationSession:
         x = torch.lerp(
             prompt_embeds_1,
             prompt_embeds_2,
-            torch.linspace(0, 1, steps=interpolation_steps)
-            .unsqueeze(1)
-            .unsqueeze(2)
-            .to(prompt_embeds_1),
+            torch.linspace(0, 1, steps=interpolation_steps).unsqueeze(1).unsqueeze(2).to(prompt_embeds_1),
         )
         self.interpolated_prompt_embeds = list(x.chunk(interpolation_steps, dim=0))
 
@@ -636,9 +625,9 @@ class GenerationSession:
         models.pipeline.scheduler.set_timesteps(1000, training=True)
 
         st = models.pipeline.scheduler.timesteps
-        self.zero_padded_timesteps = torch.cat(
-            (st.cpu(), torch.tensor([0], dtype=torch.float32))
-        ).to(torch.cuda.current_device())
+        self.zero_padded_timesteps = torch.cat((st.cpu(), torch.tensor([0], dtype=torch.float32))).to(
+            torch.cuda.current_device()
+        )
 
     def get_clean_context_frames(self, models: Models):
         current_kv_cache_num_frames = (
@@ -649,8 +638,7 @@ class GenerationSession:
         clean_context_frames = self.all_latents[:, : self.current_start_frame]
         if (
             self.params.keep_first_frame
-            or (self.block_idx - 1) * models.pipeline.num_frame_per_block
-            < current_kv_cache_num_frames
+            or (self.block_idx - 1) * models.pipeline.num_frame_per_block < current_kv_cache_num_frames
         ):
             if current_kv_cache_num_frames == 1:
                 clean_context_frames = clean_context_frames[:, :1]
@@ -664,9 +652,7 @@ class GenerationSession:
                 )
         else:
             # print("reencoding first latent frame, block idx:")
-            clean_context_frames = clean_context_frames[:, 1:][
-                :, -current_kv_cache_num_frames + 1 :
-            ]
+            clean_context_frames = clean_context_frames[:, 1:][:, -current_kv_cache_num_frames + 1 :]
             first_frame_latent = encode_video_latent(
                 models.vae_encoder,
                 [None] * 55,
@@ -705,9 +691,7 @@ class GenerationSession:
 
     def recompute_kv_cache(self, models: Models):
         if self.block_idx == 0:
-            models.pipeline._initialize_kv_cache(
-                batch_size=1, dtype=torch.bfloat16, device=self.gpu
-            )
+            models.pipeline._initialize_kv_cache(batch_size=1, dtype=torch.bfloat16, device=self.gpu)
             if self.resume_latents is not None:
                 print("Resuming generation from latents, shape", self.resume_latents.shape)
                 self.current_start_frame = self.resume_latents.shape[1]
@@ -788,14 +772,11 @@ class GenerationSession:
         else:
             noisy_input = self.noise[
                 :,
-                self.current_start_frame : self.current_start_frame
-                + models.pipeline.num_frame_per_block,
+                self.current_start_frame : self.current_start_frame + models.pipeline.num_frame_per_block,
             ]
 
         if self.interpolated_prompt_embeds:
-            models.pipeline._initialize_crossattn_cache(
-                batch_size=1, dtype=torch.bfloat16, device=self.gpu
-            )
+            models.pipeline._initialize_crossattn_cache(batch_size=1, dtype=torch.bfloat16, device=self.gpu)
             next_interpolated_text_emb = self.interpolated_prompt_embeds.pop(0)
             self.current_prompt_embeds = next_interpolated_text_emb.to(
                 dtype=self.current_prompt_embeds.dtype, device=self.current_prompt_embeds.device
@@ -860,8 +841,7 @@ class GenerationSession:
 
         self.all_latents[
             :,
-            self.current_start_frame : self.current_start_frame
-            + models.pipeline.num_frame_per_block,
+            self.current_start_frame : self.current_start_frame + models.pipeline.num_frame_per_block,
         ] = denoised_pred
         self.last_pred = denoised_pred
         # decode_start = time.time()
@@ -874,9 +854,7 @@ class GenerationSession:
         ctx = torch.compiler.set_stance("default")
 
         with ctx:
-            pixels, self.decode_vae_cache = models.vae_decoder(
-                denoised_pred.half(), *self.decode_vae_cache
-            )
+            pixels, self.decode_vae_cache = models.vae_decoder(denoised_pred.half(), *self.decode_vae_cache)
 
         self.frame_context_cache.extend(pixels.split(1, dim=1))
         if idx == 0:
@@ -921,9 +899,7 @@ def compile_models(models: Models):
 
 # SECTION - SERVER & HANDLING
 async def lifespan(app: FastAPI):
-    app.state.config = load_merge_config(
-        os.getenv("CONFIG", "configs/self_forcing_server_14b.yaml")
-    )
+    app.state.config = load_merge_config(os.getenv("CONFIG", "configs/self_forcing_server_14b.yaml"))
     app.state.models = load_all(app.state.config)
     yield
 
@@ -1191,9 +1167,7 @@ async def ws_session(websocket: WebSocket, id: str, config: OmegaConf, models: M
 
                 for idx in range(tensor.shape[1]):
                     frame_id = frame_ids[idx] if idx < len(frame_ids) else UUID_NIL
-                    frame_queue.put_nowait(
-                        loop.create_task(extract_frame(cpu_frame_future, idx, frame_id))
-                    )
+                    frame_queue.put_nowait(loop.create_task(extract_frame(cpu_frame_future, idx, frame_id)))
             except Exception as e:
                 logging.error(f"Error in frame_callback: {e}")
                 traceback.print_exc()
@@ -1217,16 +1191,12 @@ async def ws_session(websocket: WebSocket, id: str, config: OmegaConf, models: M
                         await loop.run_in_executor(generate_pool, session.generate_block, models)
                     except asyncio.CancelledError:
                         # Generation completed all blocks
-                        logging.info(
-                            f"Generation completed: {session.block_idx}/{session.num_blocks} blocks"
-                        )
+                        logging.info(f"Generation completed: {session.block_idx}/{session.num_blocks} blocks")
                         try:
                             # Only send if websocket is still connected
                             await websocket.send_json({"session_id": id, "status": "completed"})
                         except Exception as e:
-                            logging.debug(
-                                f"Could not send completion message (websocket likely closed): {e}"
-                            )
+                            logging.debug(f"Could not send completion message (websocket likely closed): {e}")
                         break
                     except Exception as e:
                         logging.error(f"Error during generation: {e}")
@@ -1247,9 +1217,7 @@ async def ws_session(websocket: WebSocket, id: str, config: OmegaConf, models: M
             if frame.get("prompt", session.params.prompt) != session.params.prompt:
                 params.prompt = frame["prompt"]
                 try:
-                    interp_steps = int(
-                        frame.get("interp_steps", frame.get("interpolation_steps", 4))
-                    )
+                    interp_steps = int(frame.get("interp_steps", frame.get("interpolation_steps", 4)))
                 except Exception:
                     interp_steps = 4
                 interp_steps = max(1, int(interp_steps))

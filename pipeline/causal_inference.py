@@ -9,9 +9,7 @@ from utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
 
 
 class CausalInferencePipeline(torch.nn.Module):
-    def __init__(
-        self, args, device, frame_seq_length: int, generator=None, text_encoder=None, vae=None
-    ):
+    def __init__(self, args, device, frame_seq_length: int, generator=None, text_encoder=None, vae=None):
         super().__init__()
         # Step 1: Initialize all models
         self.generator = (
@@ -27,9 +25,7 @@ class CausalInferencePipeline(torch.nn.Module):
         self.denoising_step_list = torch.tensor(args.denoising_step_list, dtype=torch.long)
         if args.warp_denoising_step:
             print("warping denoising step list")
-            timesteps = torch.cat(
-                (self.scheduler.timesteps.cpu(), torch.tensor([0], dtype=torch.float32))
-            )
+            timesteps = torch.cat((self.scheduler.timesteps.cpu(), torch.tensor([0], dtype=torch.float32)))
             self.denoising_step_list = timesteps[1000 - self.denoising_step_list]
 
         self.num_transformer_blocks = len(self.generator.model.blocks)
@@ -72,9 +68,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 It is normalized to be in the range [0, 1].
         """
         batch_size, num_frames, num_channels, height, width = noise.shape
-        if not self.independent_first_frame or (
-            self.independent_first_frame and initial_latent is not None
-        ):
+        if not self.independent_first_frame or (self.independent_first_frame and initial_latent is not None):
             # If the first frame is independent and the first frame is provided, then the number of frames in the
             # noise should still be a multiple of num_frame_per_block
             assert num_frames % self.num_frame_per_block == 0
@@ -115,9 +109,7 @@ class CausalInferencePipeline(torch.nn.Module):
         # Step 1: Initialize KV cache to all zeros
         if self.kv_cache1 is None:
             self._initialize_kv_cache(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
-            self._initialize_crossattn_cache(
-                batch_size=batch_size, dtype=noise.dtype, device=noise.device
-            )
+            self._initialize_crossattn_cache(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
         else:
             # reset cross attn cache
             for block_index in range(self.num_transformer_blocks):
@@ -196,9 +188,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 print(f"current_timestep: {current_timestep}")
                 # set current timestep
                 timestep = (
-                    torch.ones(
-                        [batch_size, current_num_frames], device=noise.device, dtype=torch.int64
-                    )
+                    torch.ones([batch_size, current_num_frames], device=noise.device, dtype=torch.int64)
                     * current_timestep
                 )
 
@@ -232,9 +222,7 @@ class CausalInferencePipeline(torch.nn.Module):
                     )
 
             # Step 3.2: record the model's output
-            output[:, current_start_frame : current_start_frame + current_num_frames] = (
-                denoised_pred
-            )
+            output[:, current_start_frame : current_start_frame + current_num_frames] = denoised_pred
 
             # Step 3.3: rerun with timestep zero to update KV cache using clean context
             context_timestep = torch.ones_like(timestep) * self.args.context_noise

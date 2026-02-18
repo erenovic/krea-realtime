@@ -127,8 +127,7 @@ class SiD(SelfForcingModel):
         )
 
         pred_real_image = (
-            pred_real_image_cond
-            + (pred_real_image_cond - pred_real_image_uncond) * self.real_guidance_scale
+            pred_real_image_cond + (pred_real_image_cond - pred_real_image_uncond) * self.real_guidance_scale
         )
 
         # Step 2.3: SiD Loss
@@ -179,12 +178,10 @@ class SiD(SelfForcingModel):
             - generator_log_dict: a dictionary containing the intermediate tensors for logging.
         """
         # Step 1: Unroll generator to obtain fake videos
-        pred_image, gradient_mask, denoised_timestep_from, denoised_timestep_to = (
-            self._run_generator(
-                image_or_video_shape=image_or_video_shape,
-                conditional_dict=conditional_dict,
-                initial_latent=initial_latent,
-            )
+        pred_image, gradient_mask, denoised_timestep_from, denoised_timestep_to = self._run_generator(
+            image_or_video_shape=image_or_video_shape,
+            conditional_dict=conditional_dict,
+            initial_latent=initial_latent,
         )
 
         # Step 2: Compute the DMD loss

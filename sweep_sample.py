@@ -3,22 +3,25 @@ import os
 import glob
 
 from safetensors.torch import load_file, save_file
+
 model_paths = glob.glob("release_candidates_sf_14b/*")
+
+
 def load_ckpt(path):
     sft_path = path.replace(".pt", ".sft")
     if os.path.exists(sft_path):
         path = sft_path
-    if path.endswith(".safetensors") or path.endswith(".sft") :
+    if path.endswith(".safetensors") or path.endswith(".sft"):
         print("Loading safetensors file", path)
         state_dict = load_file(path, device="cuda")
     else:
         print("Loading pt file", path)
         state_dict = torch.load(path, map_location="cuda")
         save_file(state_dict, sft_path)
-    state_dict = {
-        "model." + k if not k.startswith("model.") else k: v for k, v in state_dict.items()
-    }
+    state_dict = {"model." + k if not k.startswith("model.") else k: v for k, v in state_dict.items()}
     return state_dict
+
+
 # print("model paths:", model_paths)
 model_paths = [
     "checkpoints/14b_200.safetensors",
@@ -44,6 +47,7 @@ print("✅ Models loaded and ready to use!")
 
 # %%
 from sample import GenerateParams
+
 params = GenerateParams(
     prompt="A cat playing with a ball of yarn",
     width=832,
@@ -51,16 +55,16 @@ params = GenerateParams(
     num_blocks=8,
     is_t2v=True,
     seed=123,
-    kv_cache_num_frames = 3,
-    keep_first_frame = False,
-    thresh_kv_scale = 1.,
-    num_denoising_steps = 8,
-
+    kv_cache_num_frames=3,
+    keep_first_frame=False,
+    thresh_kv_scale=1.0,
+    num_denoising_steps=8,
 )
 
 # %%
 import importlib
 import sample
+
 importlib.reload(sample)
 
 
@@ -75,14 +79,12 @@ test_prompts = [
     "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage",
     "She returns in a radiant gown made entirely of flowing gold silk, draped in voluminous layers that trail behind her in shimmering waves. The fabric ripples dramatically with each step, catching and scattering light across the runway. The dress moves like liquid metal, transforming her walk into a continuous display of luxury and opulence, radically different from her previous sculptural look.",
     "Inside a steaming porcelain coffee cup, two tiny wooden galleons clash on dark, swirling waves of coffee. Cannons fire with sharp flashes, sending miniature plumes of smoke curling into the air, while splinters of wood spray from direct hits. The surface of the coffee sloshes violently with every broadside, waves lapping against the cup’s rim. Steam drifts upward, blending with the smoke, as the ships circle each other in a chaotic, continuous duel.",
-    "A massive wooden ship sails through a dark, stormy sea, its masts swaying violently as enormous waves crash against the hull. The ocean roars with relentless power, sending bursts of white spray over the deck as the crew struggles to keep control. Scene from an award-winning movie, Underexposed, undersaturated, muted color palette, cinematic scene with professional color grading", 
+    "A massive wooden ship sails through a dark, stormy sea, its masts swaying violently as enormous waves crash against the hull. The ocean roars with relentless power, sending bursts of white spray over the deck as the crew struggles to keep control. Scene from an award-winning movie, Underexposed, undersaturated, muted color palette, cinematic scene with professional color grading",
     "In front of a western saloon, a cowboy spins a revolver then turns quickly and shoots it, a wisp of smoke coming from the barrel",
     "From within the blaze, the sorcerer’s form mutates as enormous wings of fire burst from his back, each feather a living tongue of flame. The wings unfurl with explosive force, showering the night with embers. He beats them once, sending a wave of heat rippling through the air that bends the storm clouds above. The ground shakes as glowing rocks tumble away from the platform, cast into the darkness by the surging winds.",
     "A cyborg bird flaps its wings and takes flight, its metallic feathers glinting in the sunlight. The bird soars through the sky, its body transforming into a sleek, aerodynamic shape as it glides effortlessly through the air. The bird's eyes glow with an inner light, and its wings spread wide to catch the wind. The bird's body is made of a combination of organic and synthetic materials, with a sleek, modern design that allows it to move with ease through the air. The bird's body is made of a combination of organic and synthetic materials, with a sleek, modern design that allows it to move with ease through the air.",
     "A single purple flower rests against a deep black background, its closed bud trembling slightly before beginning to unfurl. In a smooth timelapse motion, the petals peel outward layer by layer, stretching and curving as they catch subtle highlights that shimmer along their velvety edges. The bloom expands fully, revealing the intricate textures and radiant color of the flower in one continuous, fluid motion.",
     "Abstract stunning visuals of smoke morphing into a face, which then turns back into smoke, looping video, cinematic style, muted color palette, soft lighting, dynamic motion.",
-    
-
 ]
 
 # %%
@@ -91,6 +93,7 @@ print(test_prompts[:2][0])
 # %%
 import importlib
 import sample
+
 importlib.reload(sample)
 
 import sample
@@ -114,11 +117,12 @@ for i, model_path in enumerate(model_paths):
         m, u = models.pipeline.generator.load_state_dict(sd, strict=False)
     for block in models.pipeline.generator.model.blocks:
         block.self_attn.fused_projections = False
-    
+
     # print("model loaded, missing:", m, "unexpected:", u)
     if i != 0:
         del sd
     import gc
+
     gc.collect()
 
     results = sample.sample_videos(
@@ -127,6 +131,6 @@ for i, model_path in enumerate(model_paths):
         params=params,
         output_dir=output_dir,
         save_videos=True,
-        fps=16
+        fps=16,
     )
     torch.cuda.empty_cache()

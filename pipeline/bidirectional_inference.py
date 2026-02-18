@@ -16,17 +16,11 @@ class BidirectionalInferencePipeline(torch.nn.Module):
 
         # Step 2: Initialize all bidirectional wan hyperparmeters
         self.scheduler = self.generator.get_scheduler()
-        self.denoising_step_list = torch.tensor(
-            args.denoising_step_list, dtype=torch.long, device=device
-        )
+        self.denoising_step_list = torch.tensor(args.denoising_step_list, dtype=torch.long, device=device)
         if self.denoising_step_list[-1] == 0:
-            self.denoising_step_list = self.denoising_step_list[
-                :-1
-            ]  # remove the zero timestep for inference
+            self.denoising_step_list = self.denoising_step_list[:-1]  # remove the zero timestep for inference
         if args.warp_denoising_step:
-            timesteps = torch.cat(
-                (self.scheduler.timesteps.cpu(), torch.tensor([0], dtype=torch.float32))
-            )
+            timesteps = torch.cat((self.scheduler.timesteps.cpu(), torch.tensor([0], dtype=torch.float32)))
             self.denoising_step_list = timesteps[1000 - self.denoising_step_list]
 
     def inference(self, noise: torch.Tensor, text_prompts: list[str]) -> torch.Tensor:

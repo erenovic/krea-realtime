@@ -81,9 +81,7 @@ class BaseModel(nn.Module):
                     timestep_from_second.shape[0], -1, num_frame_per_block
                 )
                 timestep_from_second[:, :, 1:] = timestep_from_second[:, :, 0:1]
-                timestep_from_second = timestep_from_second.reshape(
-                    timestep_from_second.shape[0], -1
-                )
+                timestep_from_second = timestep_from_second.reshape(timestep_from_second.shape[0], -1)
                 timestep = torch.cat([timestep[:, 0:1], timestep_from_second], dim=1)
             else:
                 timestep = timestep.reshape(timestep.shape[0], -1, num_frame_per_block)
@@ -114,9 +112,7 @@ class SelfForcingModel(BaseModel):
             - denoised_timestep: an integer
         """
         # Step 1: Sample noise and backward simulate the generator's input
-        assert getattr(self.args, "backward_simulation", True), (
-            "Backward simulation needs to be enabled"
-        )
+        assert getattr(self.args, "backward_simulation", True), "Backward simulation needs to be enabled"
         if initial_latent is not None:
             conditional_dict["initial_latent"] = initial_latent
         if self.args.i2v:
@@ -132,17 +128,13 @@ class SelfForcingModel(BaseModel):
         # [21, self.num_training_frames], but still being a multiple of self.num_frame_per_block
         min_num_frames = 20 if self.args.independent_first_frame else 21
         max_num_frames = (
-            self.num_training_frames - 1
-            if self.args.independent_first_frame
-            else self.num_training_frames
+            self.num_training_frames - 1 if self.args.independent_first_frame else self.num_training_frames
         )
         assert max_num_frames % self.num_frame_per_block == 0
         assert min_num_frames % self.num_frame_per_block == 0
         max_num_blocks = max_num_frames // self.num_frame_per_block
         min_num_blocks = min_num_frames // self.num_frame_per_block
-        num_generated_blocks = torch.randint(
-            min_num_blocks, max_num_blocks + 1, (1,), device=self.device
-        )
+        num_generated_blocks = torch.randint(min_num_blocks, max_num_blocks + 1, (1,), device=self.device)
         # In single-process runs the default process group is not initialized, so guard the broadcast.
         if dist.is_initialized():
             dist.broadcast(num_generated_blocks, src=0)
@@ -171,9 +163,7 @@ class SelfForcingModel(BaseModel):
                 frame = rearrange(frame, "b t c h w -> b c t h w")
                 # Encode frame to get image latent
                 image_latent = self.vae.encode_to_latent(frame).to(self.dtype)
-            pred_image_or_video_last_21 = torch.cat(
-                [image_latent, pred_image_or_video[:, -20:, ...]], dim=1
-            )
+            pred_image_or_video_last_21 = torch.cat([image_latent, pred_image_or_video[:, -20:, ...]], dim=1)
         else:
             pred_image_or_video_last_21 = pred_image_or_video
 
@@ -195,9 +185,7 @@ class SelfForcingModel(BaseModel):
             denoised_timestep_to,
         )
 
-    def _consistency_backward_simulation(
-        self, noise: torch.Tensor, **conditional_dict: dict
-    ) -> torch.Tensor:
+    def _consistency_backward_simulation(self, noise: torch.Tensor, **conditional_dict: dict) -> torch.Tensor:
         """
         Simulate the generator's input from noise to avoid training/inference mismatch.
         See Sec 4.5 of the DMD2 paper (https://arxiv.org/abs/2405.14867) for details.

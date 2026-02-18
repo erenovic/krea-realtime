@@ -10,9 +10,7 @@ from wan.utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 
 
 class CausalDiffusionInferencePipeline(torch.nn.Module):
-    def __init__(
-        self, args, device, frame_seq_length: int, generator=None, text_encoder=None, vae=None
-    ):
+    def __init__(self, args, device, frame_seq_length: int, generator=None, text_encoder=None, vae=None):
         super().__init__()
         # Step 1: Initialize all models
         self.generator = (
@@ -71,9 +69,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
                 (batch_size, num_frames, num_channels, height, width). It is normalized to be in the range [0, 1].
         """
         batch_size, num_frames, num_channels, height, width = noise.shape
-        if not self.independent_first_frame or (
-            self.independent_first_frame and initial_latent is not None
-        ):
+        if not self.independent_first_frame or (self.independent_first_frame and initial_latent is not None):
             # If the first frame is independent and the first frame is provided, then the number of frames in the
             # noise should still be a multiple of num_frame_per_block
             assert num_frames % self.num_frame_per_block == 0
@@ -85,9 +81,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
         num_input_frames = initial_latent.shape[1] if initial_latent is not None else 0
         num_output_frames = num_frames + num_input_frames  # add the initial latent frames
         conditional_dict = self.text_encoder(text_prompts=text_prompts)
-        unconditional_dict = self.text_encoder(
-            text_prompts=[self.args.negative_prompt] * len(text_prompts)
-        )
+        unconditional_dict = self.text_encoder(text_prompts=[self.args.negative_prompt] * len(text_prompts))
 
         output = torch.zeros(
             [batch_size, num_output_frames, num_channels, height, width],
@@ -98,9 +92,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
         # Step 1: Initialize KV cache to all zeros
         if self.kv_cache_pos is None:
             self._initialize_kv_cache(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
-            self._initialize_crossattn_cache(
-                batch_size=batch_size, dtype=noise.dtype, device=noise.device
-            )
+            self._initialize_crossattn_cache(batch_size=batch_size, dtype=noise.dtype, device=noise.device)
         else:
             # reset cross attn cache
             for block_index in range(self.num_transformer_blocks):
@@ -224,9 +216,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
                     cache_start=cache_start_frame * self.frame_seq_length,
                 )
 
-                flow_pred = flow_pred_uncond + self.args.guidance_scale * (
-                    flow_pred_cond - flow_pred_uncond
-                )
+                flow_pred = flow_pred_uncond + self.args.guidance_scale * (flow_pred_cond - flow_pred_uncond)
 
                 temp_x0 = sample_scheduler.step(flow_pred, t, latents, return_dict=False)[0]
                 latents = temp_x0
@@ -285,24 +275,16 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
         for _ in range(self.num_transformer_blocks):
             kv_cache_pos.append(
                 {
-                    "k": torch.zeros(
-                        [batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device
-                    ),
-                    "v": torch.zeros(
-                        [batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device
-                    ),
+                    "k": torch.zeros([batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device),
+                    "v": torch.zeros([batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device),
                     "global_end_index": torch.tensor([0], dtype=torch.long, device=device),
                     "local_end_index": torch.tensor([0], dtype=torch.long, device=device),
                 }
             )
             kv_cache_neg.append(
                 {
-                    "k": torch.zeros(
-                        [batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device
-                    ),
-                    "v": torch.zeros(
-                        [batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device
-                    ),
+                    "k": torch.zeros([batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device),
+                    "v": torch.zeros([batch_size, kv_cache_size, 12, 128], dtype=dtype, device=device),
                     "global_end_index": torch.tensor([0], dtype=torch.long, device=device),
                     "local_end_index": torch.tensor([0], dtype=torch.long, device=device),
                 }
@@ -341,9 +323,7 @@ class CausalDiffusionInferencePipeline(torch.nn.Module):
             sample_scheduler = FlowUniPCMultistepScheduler(
                 num_train_timesteps=self.num_train_timesteps, shift=1, use_dynamic_shifting=False
             )
-            sample_scheduler.set_timesteps(
-                self.sampling_steps, device=noise.device, shift=self.shift
-            )
+            sample_scheduler.set_timesteps(self.sampling_steps, device=noise.device, shift=self.shift)
             self.timesteps = sample_scheduler.timesteps
         elif self.sample_solver == "dpm++":
             sample_scheduler = FlowDPMSolverMultistepScheduler(
