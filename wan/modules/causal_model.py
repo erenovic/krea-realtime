@@ -2,7 +2,7 @@ import functools
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn, Tensor
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.models.modeling_utils import ModelMixin
 from torch.nn.attention.flex_attention import BlockMask, create_block_mask, flex_attention
@@ -1068,20 +1068,20 @@ class CausalWanModel(ModelMixin, ConfigMixin):
 
     def _forward_train(
         self,
-        x,
+        x: Tensor,
         t,
         context,
         seq_len,
         clean_x=None,
         aug_t=None,
         clip_fea=None,
-        y=None,
+        y: list[Tensor] | Tensor | None = None,
     ):
         r"""
         Forward pass through the diffusion model
 
         Args:
-            x (List[Tensor]):
+            x (List[Tensor] | Tensor):
                 List of input video tensors, each with shape [C_in, F, H, W]
             t (Tensor):
                 Diffusion timesteps tensor of shape [B]
@@ -1091,7 +1091,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                 Maximum sequence length for positional encoding
             clip_fea (Tensor, *optional*):
                 CLIP image features for image-to-video mode
-            y (List[Tensor], *optional*):
+            y (List[Tensor] | Tensor, *optional*):
                 Conditional video inputs for image-to-video mode, same shape as x
 
         Returns:

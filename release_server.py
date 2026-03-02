@@ -801,6 +801,7 @@ class GenerationSession:
             )
 
         # This is set from config
+        actual_num_frames = noisy_input.shape[1]
         for index, current_timestep in enumerate(self.denoising_step_list):
             if self.disposed.is_set():
                 return
@@ -808,7 +809,7 @@ class GenerationSession:
             # Normal initialize timestamp stuff
             timestep = (
                 torch.ones(
-                    [1, models.pipeline.num_frame_per_block],
+                    [1, actual_num_frames],
                     device=self.noise.device,
                     dtype=torch.int64,
                 )
@@ -839,7 +840,7 @@ class GenerationSession:
                     ),
                     next_timestep
                     * torch.ones(
-                        [1 * models.pipeline.num_frame_per_block],
+                        [1 * actual_num_frames],
                         device=self.noise.device,
                         dtype=torch.long,
                     ),
@@ -872,11 +873,25 @@ class GenerationSession:
         ctx = torch.compiler.set_stance("default")
 
         with ctx:
+            # Block 0 with resume: decode the resume latent first to properly seed the VAE
+            # streaming cache. Without this, block 0 starts with an empty cache and treats
+            # latent frame 1 as the "first ever" frame (1 pixel output) instead of as the
+            # second frame in the sequence (4 pixel outputs), causing 4 missing pixel frames.
+            used_resume = idx == 0 and self.current_start_frame > 0
+            if used_resume:
+                resume_frame = self.all_latents[:, 0 : self.current_start_frame]
+                resume_pixels, self.decode_vae_cache = models.vae_decoder(
+                    resume_frame.half(), *self.decode_vae_cache
+                )
+
             pixels, self.decode_vae_cache = models.vae_decoder(denoised_pred.half(), *self.decode_vae_cache)
 
+            if used_resume:
+                pixels = torch.cat([resume_pixels, pixels], dim=1)
+
         self.frame_context_cache.extend(pixels.split(1, dim=1))
-        if idx == 0:
-            pixels = pixels[:, 3:, :, :, :]  # Skip first 3 frames of first block
+        if idx == 0 and not used_resume:
+            pixels = pixels[:, 3:, :, :, :]  # Skip first 3 frames of first block (no-resume case only)
 
         self.most_recent_frame = pixels[:, -1:, ...].clone()
 
