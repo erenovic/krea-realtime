@@ -174,6 +174,7 @@ class CausalWanSelfAttention(nn.Module):
         sink_size=0,
         qk_norm=True,
         eps=1e-6,
+        num_latent_frames: int = 21,
     ):
         assert dim % num_heads == 0
         super().__init__()
@@ -184,9 +185,9 @@ class CausalWanSelfAttention(nn.Module):
         self.sink_size = sink_size
         self.qk_norm = qk_norm
         self.eps = eps
-        self.max_attention_size = 32760 if local_attn_size == -1 else local_attn_size * 1560
+        self.max_attention_size = frame_seq_len * num_latent_frames if local_attn_size == -1 else local_attn_size * frame_seq_len
         self.fused_projections = False
-        self.frame_seqlen = 1560  # hardcoded
+        self.frame_seqlen = frame_seq_len
 
         # layers
         self.q = nn.Linear(dim, dim)
@@ -322,12 +323,14 @@ class CausalWanSelfAttention(nn.Module):
                 roped_query = rope_apply(q, grid_sizes, freqs).type_as(v)
                 roped_key = rope_apply(k, grid_sizes, freqs).type_as(v)
 
-                local_end_index = roped_key.shape[1]
-                kv_cache["k"][:, :local_end_index] = roped_key
-                kv_cache["v"][:, :local_end_index] = v
-
-                kv_cache["global_end_index"] = local_end_index
-                kv_cache["local_end_index"] = local_end_index
+                # Prefill mode: kv_cache is set → write keys/values into cache.
+                # Training mode: kv_cache is None → skip cache writes, just attend.
+                if kv_cache is not None:
+                    local_end_index = roped_key.shape[1]
+                    kv_cache["k"][:, :local_end_index] = roped_key
+                    kv_cache["v"][:, :local_end_index] = v
+                    kv_cache["global_end_index"] = local_end_index
+                    kv_cache["local_end_index"] = local_end_index
 
                 padded_length = math.ceil(q.shape[1] / 128) * 128 - q.shape[1]
                 padded_roped_query = torch.cat(
@@ -453,6 +456,7 @@ class CausalWanAttentionBlock(nn.Module):
         qk_norm=True,
         cross_attn_norm=False,
         eps=1e-6,
+        num_latent_frames: int = 21,
     ):
         super().__init__()
         self.dim = dim
@@ -466,7 +470,7 @@ class CausalWanAttentionBlock(nn.Module):
         # layers
         self.norm1 = WanLayerNorm(dim, eps)
         self.self_attn = CausalWanSelfAttention(
-            dim, num_heads, frame_seq_len, local_attn_size, sink_size, qk_norm, eps
+            dim, num_heads, frame_seq_len, local_attn_size, sink_size, qk_norm, eps, num_latent_frames
         )
         self.norm3 = WanLayerNorm(dim, eps, elementwise_affine=True) if cross_attn_norm else nn.Identity()
         self.cross_attn = WAN_CROSSATTENTION_CLASSES[cross_attn_type](dim, num_heads, (-1, -1), qk_norm, eps)
@@ -600,6 +604,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
         cross_attn_norm=True,
         eps=1e-6,
         frame_seq_len=1560,
+        num_latent_frames=21,
     ):
         r"""
         Initialize the diffusion model backbone.
@@ -683,6 +688,7 @@ class CausalWanModel(ModelMixin, ConfigMixin):
                     qk_norm,
                     cross_attn_norm,
                     eps,
+                    num_latent_frames,
                 )
                 for _ in range(num_layers)
             ]
@@ -1219,11 +1225,10 @@ class CausalWanModel(ModelMixin, ConfigMixin):
         return torch.stack(x)
 
     def forward(self, *args, **kwargs):
-        result = self._forward_inference(*args, **kwargs)
-        # if kwargs.get('kv_cache', None) is not None:
-        # else:
-        #     result = self._forward_train(*args, **kwargs)
-
+        if self.training:
+            result = self._forward_train(*args, **kwargs)
+        else:
+            result = self._forward_inference(*args, **kwargs)
         return result
 
     def unpatchify(self, x, grid_sizes):

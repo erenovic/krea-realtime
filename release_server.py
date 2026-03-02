@@ -115,6 +115,12 @@ class Models:
         self.vae_decoder: VAEDecoderWrapper = vae_decoder
 
 
+def _get_causal_model(generator):
+    """Return the underlying CausalWanModel, unwrapping PeftModel if present."""
+    model = generator.model
+    return model.get_base_model() if hasattr(model, "get_base_model") else model
+
+
 def copy_models(models: Models, config, gpu):
     from copy import deepcopy
 
@@ -180,11 +186,15 @@ def load_transformer(config, meta_transformer=False):
     timestep_shift = getattr(config, "timestep_shift", 5.0)
 
     frame_seq_len = (config.height // 16) * (config.width // 16)
+    num_latent_frames = config.num_training_frames
+    # frame_seq_len = 1560
+    # num_latent_frames = 21
     transformer = WanDiffusionWrapper(
         model_name=model_name,
         timestep_shift=timestep_shift,
         is_causal=True,
         frame_seq_len=frame_seq_len,
+        num_latent_frames=num_latent_frames,
     )
     transformer.load_state_dict(state_dict)
 
@@ -260,6 +270,7 @@ def load_pipeline(config, device, transformer, text_encoder, vae_decoder):
     log.debug(f"Pipeline import took: {t_import - t_start:.2f}s")
 
     frame_seq_length = (config.height // 16) * (config.width // 16)
+    # frame_seq_length=1560
     pipeline = CausalInferencePipeline(
         config,
         device=device,
@@ -381,6 +392,7 @@ class GenerationSession:
         debug=False,
         frame_callback: Callable | None = None,
         models: Models | None = None,
+        dtype: torch.dtype = torch.bfloat16
     ):
         self.current_use_taehv = config.use_taehv
         self.frame_callback = frame_callback or (
@@ -432,14 +444,6 @@ class GenerationSession:
 
         self.rnd = torch.Generator(self.gpu).manual_seed(self.params.seed)
 
-        num_latent_frames = self.num_blocks * self.num_frame_per_block
-
-        latent_shape = [1, num_latent_frames, 16, self.latent_height, self.latent_width]
-        self.all_latents = torch.zeros(latent_shape, device=self.gpu, dtype=torch.bfloat16).contiguous()
-        self.noise = torch.randn(
-            latent_shape, device=self.gpu, dtype=torch.bfloat16, generator=self.rnd
-        ).contiguous()
-
         # Generation parameters
         self.current_start_frame = 0
         self.total_frames_sent = 0
@@ -455,29 +459,43 @@ class GenerationSession:
         )
 
         print("denoising step list: ", self.denoising_step_list)
+        
+        if self.params.start_frame is not None:
+            print("Setting up start frame")
+            start_frame = self.params.start_frame
+            if isinstance(start_frame, str):
+                start_frame = Image.open(start_frame).convert("RGB")
+            elif isinstance(start_frame, bytes):
+                start_frame = Image.open(BytesIO(start_frame)).convert("RGB")
+            # Sets `self.resume_latents` as well in `setup_start_frame`
+            self.setup_start_frame(start_frame, models)
+
+        num_latent_frames = self.num_blocks * self.num_frame_per_block
+        if self.resume_latents is not None:
+            num_latent_frames += self.resume_latents.shape[1]
+
+        latent_shape = [1, num_latent_frames, 16, self.latent_height, self.latent_width]
+        self.all_latents = torch.zeros(latent_shape, device=self.gpu, dtype=dtype).contiguous()
+        
         if self.input_video is not None:
             init_denoising_strength_scaled = self.denoising_step_list[0] / 1000
             latents, _ = self.encode_v2v(self.input_video, max_frames=None, resample_to=None)
-            latents = latents[None].to(self.gpu, dtype=self.noise.dtype).movedim(1, 2)
+            latents = latents[None].to(self.gpu, dtype=dtype).movedim(1, 2)
 
             self.noise = (
                 latents * (1.0 - init_denoising_strength_scaled)
-                + torch.randn(
-                    latents.shape,
-                    device=self.noise.device,
-                    dtype=self.noise.dtype,
-                    generator=self.rnd,
-                )
+                + torch.randn(latents.shape, device=self.gpu, dtype=dtype, generator=self.rnd)
                 * init_denoising_strength_scaled
-            )
-            self.noise = self.noise.contiguous()
+            ).contiguous()
             print("latents shape: ", latents.shape)
             actual_num_blocks = latents.shape[1] // self.num_frame_per_block - 1
             self.num_blocks = min(actual_num_blocks, self.params.num_blocks)
             print("final num blocks: ", self.num_blocks)
-        if self.params.start_frame is not None:
-            print("Setting up start frame")
-            self.setup_start_frame(self.params.start_frame, models)
+            
+            # Re-adjust all_latents just in case input_video size dictated a different shape
+            self.all_latents = torch.zeros(self.noise.shape, device=self.gpu, dtype=dtype).contiguous()
+        else:
+            self.noise = torch.randn(latent_shape, device=self.gpu, dtype=dtype, generator=self.rnd).contiguous()
 
         self.last_pred: torch.Tensor | None = None
 
@@ -609,14 +627,14 @@ class GenerationSession:
 
     def init_models(self, models: Models, params: GenerateParams):
         attn_size = self.params.kv_cache_num_frames + models.pipeline.num_frame_per_block
-        for block in models.pipeline.generator.model.blocks:
+        for block in _get_causal_model(models.pipeline.generator).blocks:
             block.self_attn.local_attn_size = -1
         models.pipeline.local_attn_size = attn_size
-        for block in models.pipeline.generator.model.blocks:
+        for block in _get_causal_model(models.pipeline.generator).blocks:
             block.self_attn.local_attn_size = -1
         models.pipeline._initialize_kv_cache(batch_size=1, dtype=torch.bfloat16, device=gpu)
         models.pipeline._initialize_crossattn_cache(batch_size=1, dtype=torch.bfloat16, device=gpu)
-        models.pipeline.generator.model.block_mask = None
+        _get_causal_model(models.pipeline.generator).block_mask = None
 
         # this prevents a cuda sync
         models.pipeline.scheduler = FlowMatchScheduler(
@@ -699,7 +717,7 @@ class GenerationSession:
             else:
                 return self.current_start_frame
 
-        for block in models.pipeline.generator.model.blocks:
+        for block in _get_causal_model(models.pipeline.generator).blocks:
             block.self_attn.num_frame_per_block = models.pipeline.num_frame_per_block
 
         current_kv_cache_num_frames = self.params.kv_cache_num_frames
@@ -730,7 +748,7 @@ class GenerationSession:
             )
             * 0
         )
-        models.pipeline.generator.model.block_mask = block_mask
+        _get_causal_model(models.pipeline.generator).block_mask = block_mask
         models.transformer(
             noisy_image_or_video=clean_context_frames,
             conditional_dict=self.conditional_dict,
@@ -739,7 +757,7 @@ class GenerationSession:
             crossattn_cache=models.pipeline.crossattn_cache,
             current_start=model_input_start_frame * models.pipeline.frame_seq_length,
         )
-        models.pipeline.generator.model.block_mask = None
+        _get_causal_model(models.pipeline.generator).block_mask = None
         return model_input_start_frame
 
     @torch.inference_mode()

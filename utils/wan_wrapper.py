@@ -1,5 +1,6 @@
 import os
 import types
+from typing import TYPE_CHECKING
 from contextlib import nullcontext
 
 import torch
@@ -11,6 +12,9 @@ from wan.modules.model import GanAttentionBlock, RegisterTokens, WanModel
 from wan.modules.t5 import umt5_xxl
 from wan.modules.tokenizers import HuggingfaceTokenizer
 from wan.modules.vae import _video_vae
+
+if TYPE_CHECKING:
+    from peft import PeftModel
 
 
 class WanTextEncoder(torch.nn.Module):
@@ -156,6 +160,8 @@ class WanVAEWrapper(torch.nn.Module):
 
 
 class WanDiffusionWrapper(torch.nn.Module):
+    model: CausalWanModel | WanModel | "PeftModel"
+    
     def __init__(
         self,
         # model_name="Wan2.1-T2V-14B",
@@ -166,6 +172,7 @@ class WanDiffusionWrapper(torch.nn.Module):
         sink_size: int = 0,
         meta_init: bool = False,
         frame_seq_len: int = 1560,
+        num_latent_frames: int = 21,
     ):
         super().__init__()
 
@@ -179,6 +186,7 @@ class WanDiffusionWrapper(torch.nn.Module):
                     local_attn_size=local_attn_size,
                     sink_size=sink_size,
                     frame_seq_len=frame_seq_len,
+                    num_latent_frames=num_latent_frames,
                 )
             else:
                 self.model = WanModel.from_pretrained(model_path)
@@ -191,7 +199,9 @@ class WanDiffusionWrapper(torch.nn.Module):
         self.scheduler = FlowMatchScheduler(shift=timestep_shift, sigma_min=0.0, extra_one_step=True)
         self.scheduler.set_timesteps(1000, training=True)
 
-        self.seq_len = 32760  # [1, 21, 16, 60, 104]
+        # # total tokens: spatial tokens per frame × num latent frames
+        # self.seq_len = 32760  # [1, 21, 16, 60, 104]
+        self.seq_len = frame_seq_len * num_latent_frames
         self.post_init()
 
     def enable_gradient_checkpointing(self) -> None:
@@ -347,7 +357,7 @@ class WanDiffusionWrapper(torch.nn.Module):
 
         return flow_pred, pred_x0
 
-    def get_scheduler(self) -> SchedulerInterface:
+    def get_scheduler(self) -> FlowMatchScheduler:
         """
         Update the current scheduler with the interface's static method
         """

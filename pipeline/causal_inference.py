@@ -287,17 +287,23 @@ class CausalInferencePipeline(torch.nn.Module):
         Initialize a Per-GPU KV cache for the Wan model.
         """
         kv_cache1 = []
+        
+        # Ensure cache can hold at least num_latent_frames (default 21) at current resolution
+        num_latent_frames = self.generator.model.config.num_latent_frames
+        
         if self.local_attn_size != -1:
             # Use the local attention size to compute the KV cache size
             kv_cache_size = self.local_attn_size * self.frame_seq_length
         else:
-            # Use the default KV cache size
-            kv_cache_size = 32760
+            # Use the default KV cache size (num_latent_frames from model config)
+            kv_cache_size = self.frame_seq_length * num_latent_frames
 
+        # Get heads and dim from model config
         num_heads = self.generator.model.config.num_heads
-        dim = self.generator.model.config.dim
-        k_shape = [batch_size, kv_cache_size, num_heads, dim // num_heads]
-        v_shape = [batch_size, kv_cache_size, num_heads, dim // num_heads]
+        head_dim = self.generator.model.config.dim // num_heads
+        
+        k_shape = [batch_size, kv_cache_size, num_heads, head_dim]
+        v_shape = [batch_size, kv_cache_size, num_heads, head_dim]
 
         if (
             self.kv_cache1
@@ -311,7 +317,7 @@ class CausalInferencePipeline(torch.nn.Module):
                 self.kv_cache1[i]["global_end_index"] = 0
                 self.kv_cache1[i]["local_end_index"] = 0
         else:
-            print("Initializing kv cache with shape: ", k_shape)
+            print(f"Initializing 4D kv cache with shape: {k_shape}")
             for _ in range(self.num_transformer_blocks):
                 kv_cache1.append(
                     {

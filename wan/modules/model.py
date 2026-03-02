@@ -149,8 +149,8 @@ class WanSelfAttention(nn.Module):
 
         q, k, v = qkv_fn(x)
 
-        if SAGEATTN_AVAILABLE:
-            # print("Using sageattention in crossattn")
+        if SAGEATTN_AVAILABLE and not torch.is_grad_enabled():
+            # SageAttention has no autograd backward — inference only
             og_dtype = q.dtype
             q = q.transpose(1, 2).to(dtype)
             k = k.transpose(1, 2).to(dtype)
@@ -205,8 +205,8 @@ class WanT2VCrossAttention(WanSelfAttention):
             v = self.v(context).view(b, -1, n, d)
 
         # compute attention
-        if SAGEATTN_AVAILABLE:
-            # print("Using sageattention in crossattn")
+        if SAGEATTN_AVAILABLE and not torch.is_grad_enabled():
+            # SageAttention has no autograd backward — inference only
             dtype = torch.bfloat16
             og_dtype = q.dtype
             q = q.transpose(1, 2).to(dtype)
