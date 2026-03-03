@@ -376,9 +376,7 @@ class CausalWanSelfAttention(nn.Module):
                     key=padded_roped_key.transpose(2, 1).contiguous(),
                     value=padded_v.transpose(2, 1).contiguous(),
                     block_mask=block_mask,
-                    kernel_options={
-                        "BLOCKS_ARE_CONTIGUOUS": True,
-                    },
+                    kernel_options={"BLOCKS_ARE_CONTIGUOUS": True},
                 ).transpose(2, 1)
 
                 if padded_length > 0:
