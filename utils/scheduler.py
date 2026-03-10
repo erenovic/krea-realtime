@@ -89,7 +89,7 @@ class SchedulerInterface(ABC):
         return x0_pred.to(original_dtype)
 
 
-class FlowMatchScheduler:
+class FlowMatchScheduler(SchedulerInterface):
     def __init__(
         self,
         num_inference_steps=100,
@@ -143,7 +143,7 @@ class FlowMatchScheduler:
         prev_sample = sample + model_output * (sigma_ - sigma)
         return prev_sample
 
-    def add_noise(self, original_samples, noise, timestep):
+    def add_noise(self, clean_latent: torch.Tensor, noise: torch.Tensor, timestep) -> torch.Tensor:
         """
         Diffusion forward corruption process.
         Input:
@@ -158,7 +158,7 @@ class FlowMatchScheduler:
         self.timesteps = self.timesteps.to(noise.device)
         timestep_id = torch.argmin((self.timesteps.unsqueeze(0) - timestep.unsqueeze(1)).abs(), dim=1)
         sigma = self.sigmas[timestep_id].reshape(-1, 1, 1, 1)
-        sample = (1 - sigma) * original_samples + sigma * noise
+        sample = (1 - sigma) * clean_latent + sigma * noise
         return sample.type_as(noise)
 
     def training_target(self, sample, noise, timestep):

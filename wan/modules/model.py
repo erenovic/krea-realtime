@@ -14,6 +14,7 @@ from .attention import (
     flash_attention,
     sageattn_func,
 )
+from .rope import rope_params_riflex
 
 print("SAGEATTN_AVAILABLE:", SAGEATTN_AVAILABLE)
 
@@ -151,6 +152,7 @@ class WanSelfAttention(nn.Module):
 
         if SAGEATTN_AVAILABLE and not torch.is_grad_enabled():
             # SageAttention has no autograd backward — inference only
+            dtype = torch.bfloat16
             og_dtype = q.dtype
             q = q.transpose(1, 2).to(dtype)
             k = k.transpose(1, 2).to(dtype)

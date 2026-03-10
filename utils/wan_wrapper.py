@@ -293,7 +293,7 @@ class WanDiffusionWrapper(torch.nn.Module):
         clean_x: torch.Tensor | None = None,
         aug_t: torch.Tensor | None = None,
         cache_start: int | None = None,
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         prompt_embeds = conditional_dict["prompt_embeds"]
 
         # [B, F] -> [B]
