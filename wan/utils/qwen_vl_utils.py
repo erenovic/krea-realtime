@@ -169,9 +169,7 @@ def smart_nframes(
     return nframes
 
 
-def _read_video_torchvision(
-    ele: dict,
-) -> torch.Tensor:
+def _read_video_torchvision(ele: dict) -> torch.Tensor:
     """read video using torchvision.io.read_video
 
     Args:
@@ -213,9 +211,7 @@ def is_decord_available() -> bool:
     return importlib.util.find_spec("decord") is not None
 
 
-def _read_video_decord(
-    ele: dict,
-) -> torch.Tensor:
+def _read_video_decord(ele: dict) -> torch.Tensor:
     """read video using decord.VideoReader
 
     Args:

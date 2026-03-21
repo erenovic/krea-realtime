@@ -4,9 +4,10 @@ import os
 import types
 from typing import TYPE_CHECKING
 from contextlib import nullcontext
+from pathlib import Path
 
 import torch
-from settings import MODEL_FOLDER
+# from settings import MODEL_FOLDER
 from torch import nn
 from utils.scheduler import FlowMatchScheduler, SchedulerInterface
 from wan.modules.causal_model import CausalWanModel
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class WanTextEncoder(torch.nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, text_encoder_path: Path, tokenizer_path: Path) -> None:
         super().__init__()
 
         self.text_encoder = (
@@ -33,19 +34,13 @@ class WanTextEncoder(torch.nn.Module):
             .eval()
             .requires_grad_(False)
         )
+        # os.path.join(MODEL_FOLDER, "models_t5_umt5-xxl-enc-bf16.pth"),
         self.text_encoder.load_state_dict(
-            torch.load(
-                os.path.join(MODEL_FOLDER, "models_t5_umt5-xxl-enc-bf16.pth"),
-                map_location="cuda",
-                weights_only=True,
-            )
+            torch.load(text_encoder_path, map_location="cuda", weights_only=True)
         )
 
-        self.tokenizer = HuggingfaceTokenizer(
-            name=os.path.join(MODEL_FOLDER, "google", "umt5-xxl/"),
-            seq_len=512,
-            clean="whitespace",
-        )
+        # name=os.path.join(MODEL_FOLDER, "google", "umt5-xxl/"),
+        self.tokenizer = HuggingfaceTokenizer(tokenizer_path, seq_len=512, clean="whitespace")
 
     @property
     def device(self):
@@ -66,7 +61,7 @@ class WanTextEncoder(torch.nn.Module):
 
 
 class WanVAEWrapper(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, vae_path: Path):
         super().__init__()
         mean = [
             -0.7571,
@@ -108,15 +103,8 @@ class WanVAEWrapper(torch.nn.Module):
         self.std = torch.tensor(std, dtype=torch.float32)
 
         # init model
-        vae_path = os.path.join(MODEL_FOLDER, "Wan2.1_VAE.pth")
-        self.model = (
-            _video_vae(
-                pretrained_path=vae_path,
-                z_dim=16,
-            )
-            .eval()
-            .requires_grad_(False)
-        )
+        # vae_path = os.path.join(MODEL_FOLDER, "Wan2.1_VAE.pth")
+        self.model = _video_vae(pretrained_path=vae_path, z_dim=16).eval().requires_grad_(False)
 
     def encode_to_latent(self, pixel: torch.Tensor) -> torch.Tensor:
         # pixel: [batch_size, num_channels, num_frames, height, width]
@@ -167,6 +155,7 @@ class WanDiffusionWrapper(torch.nn.Module):
     def __init__(
         self,
         # model_name="Wan2.1-T2V-14B",
+        model_path: Path,
         model_name: str = "Wan2.1-T2V-1.3B",
         timestep_shift: float = 8.0,
         is_causal: bool = False,
@@ -180,7 +169,7 @@ class WanDiffusionWrapper(torch.nn.Module):
 
         print("Loading WAN model, with name", model_name)
 
-        model_path = MODEL_FOLDER
+        # model_path = MODEL_FOLDER
         with torch.device("meta") if meta_init else nullcontext():
             if is_causal:
                 self.model = CausalWanModel.from_pretrained(

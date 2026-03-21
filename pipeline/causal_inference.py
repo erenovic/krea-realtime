@@ -287,14 +287,12 @@ class CausalInferencePipeline(torch.nn.Module):
         Initialize a Per-GPU KV cache for the Wan model.
         """
         kv_cache1 = []
-        
-        # Ensure cache can hold at least num_latent_frames (default 21) at current resolution
-        num_latent_frames = self.generator.model.config.num_latent_frames
-        
         if self.local_attn_size != -1:
             # Use the local attention size to compute the KV cache size
             kv_cache_size = self.local_attn_size * self.frame_seq_length
         else:
+            # Ensure cache can hold at least num_latent_frames (default 21) at current resolution
+            num_latent_frames = self.generator.model.config.num_latent_frames
             # Use the default KV cache size (num_latent_frames from model config)
             kv_cache_size = self.frame_seq_length * num_latent_frames
 
