@@ -1,5 +1,6 @@
 from abc import abstractmethod, ABC
 import torch
+from torch import Tensor
 
 
 class SchedulerInterface(ABC):
@@ -7,10 +8,10 @@ class SchedulerInterface(ABC):
     Base class for diffusion noise schedule.
     """
 
-    alphas_cumprod: torch.Tensor  # [T], alphas for defining the noise schedule
+    alphas_cumprod: Tensor  # [T], alphas for defining the noise schedule
 
     @abstractmethod
-    def add_noise(self, clean_latent: torch.Tensor, noise: torch.Tensor, timestep: torch.Tensor):
+    def add_noise(self, clean_latent: Tensor, noise: Tensor, timestep: Tensor) -> Tensor:
         """
         Diffusion forward corruption process.
         Input:
@@ -21,7 +22,7 @@ class SchedulerInterface(ABC):
         """
         pass
 
-    def convert_x0_to_noise(self, x0: torch.Tensor, xt: torch.Tensor, timestep: torch.Tensor) -> torch.Tensor:
+    def convert_x0_to_noise(self, x0: Tensor, xt: Tensor, timestep: Tensor) -> Tensor:
         """
         Convert the diffusion network's x0 prediction to noise predidction.
         x0: the predicted clean data with shape [B, C, H, W]
@@ -40,9 +41,7 @@ class SchedulerInterface(ABC):
         noise_pred = (xt - alpha_prod_t ** (0.5) * x0) / beta_prod_t ** (0.5)
         return noise_pred.to(original_dtype)
 
-    def convert_noise_to_x0(
-        self, noise: torch.Tensor, xt: torch.Tensor, timestep: torch.Tensor
-    ) -> torch.Tensor:
+    def convert_noise_to_x0(self, noise: Tensor, xt: Tensor, timestep: Tensor) -> Tensor:
         """
         Convert the diffusion network's noise prediction to x0 predidction.
         noise: the predicted noise with shape [B, C, H, W]
@@ -62,9 +61,7 @@ class SchedulerInterface(ABC):
         x0_pred = (xt - beta_prod_t ** (0.5) * noise) / alpha_prod_t ** (0.5)
         return x0_pred.to(original_dtype)
 
-    def convert_velocity_to_x0(
-        self, velocity: torch.Tensor, xt: torch.Tensor, timestep: torch.Tensor
-    ) -> torch.Tensor:
+    def convert_velocity_to_x0(self, velocity: Tensor, xt: Tensor, timestep: Tensor) -> Tensor:
         """
         Convert the diffusion network's velocity prediction to x0 predidction.
         velocity: the predicted noise with shape [B, C, H, W]
@@ -143,7 +140,7 @@ class FlowMatchScheduler(SchedulerInterface):
         prev_sample = sample + model_output * (sigma_ - sigma)
         return prev_sample
 
-    def add_noise(self, clean_latent: torch.Tensor, noise: torch.Tensor, timestep) -> torch.Tensor:
+    def add_noise(self, clean_latent: Tensor, noise: Tensor, timestep) -> Tensor:
         """
         Diffusion forward corruption process.
         Input:
