@@ -94,7 +94,9 @@ class WanRMSNorm(nn.Module):
         Args:
             x(Tensor): Shape [B, L, C]
         """
-        return self._norm(x.float()).type_as(x) * self.weight
+        # Keep weight multiplication in float32 so the gradient of self.weight
+        # (a sum over all sequence tokens) does not overflow BF16.
+        return (self._norm(x.float()) * self.weight.float()).type_as(x)
 
     def _norm(self, x):
         return x * torch.rsqrt(x.pow(2).mean(dim=-1, keepdim=True) + self.eps)
